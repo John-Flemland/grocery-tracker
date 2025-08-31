@@ -271,45 +271,42 @@ app.get('/api/wait-signals', async (req, res) => {
   }
 });
 
-// ROUTE 5: Expiring deals
+// ROUTE 5: Expiring deals (FIXED)
 app.get('/api/expiring-deals', async (req, res) => {
-  try {
-    console.log('⏰ Finding expiring deals...');
-    
-    const result = await pool.query(`
-      SELECT 
-        p.ingredient,
-        p.brand,
-        p.full_name,
-        p.package_size,
-        p.unit,
-        ph.price,
-        ph.loyalty_price,
-        ph.deal_savings_percentage,
-        ph.deal_valid_until,
-        
-        EXTRACT(days FROM (ph.deal_valid_until - CURRENT_DATE)) as days_until_expiry
-        
-      FROM tesco_products p
-      JOIN LATERAL (
-        SELECT * FROM tesco_price_history ph_latest
-        WHERE ph_latest.sku = p.sku 
-        ORDER BY scraped_at DESC LIMIT 1
-      ) ph ON true
-      WHERE ph.deal_valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '5 days'
-        AND ph.deal_savings_percentage > 10
-        AND p.ingredient IS NOT NULL
-      ORDER BY ph.deal_valid_until ASC, ph.deal_savings_percentage DESC
-      LIMIT 20
-    `);
-    
-    console.log(`✅ Found ${result.rows.length} expiring deals`);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('❌ Error getting expiring deals:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+    try {
+      console.log('⏰ Finding expiring deals...');
+      
+      const result = await pool.query(`
+        SELECT 
+          p.ingredient,
+          p.brand,
+          p.full_name,
+          p.package_size,
+          p.unit,
+          ph.price,
+          ph.loyalty_price,
+          ph.deal_savings_percentage,
+          ph.deal_valid_until
+        FROM tesco_products p
+        JOIN LATERAL (
+          SELECT * FROM tesco_price_history ph_latest
+          WHERE ph_latest.sku = p.sku 
+          ORDER BY scraped_at DESC LIMIT 1
+        ) ph ON true
+        WHERE ph.deal_valid_until BETWEEN CURRENT_DATE AND CURRENT_DATE + INTERVAL '5 days'
+          AND ph.deal_savings_percentage > 10
+          AND p.ingredient IS NOT NULL
+        ORDER BY ph.deal_valid_until ASC, ph.deal_savings_percentage DESC
+        LIMIT 20
+      `);
+      
+      console.log(`✅ Found ${result.rows.length} expiring deals`);
+      res.json(result.rows);
+    } catch (err) {
+      console.error('❌ Error getting expiring deals:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 // Helper function to analyze deal patterns
 async function analyzeDealPattern(ingredient) {
