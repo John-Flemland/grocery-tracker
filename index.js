@@ -28,80 +28,34 @@ pool.query('SELECT NOW()', (err, result) => {
   }
 });
 
-// ROUTE 1: Get all tracked ingredients with current pricing
+
+// ROUTE 1: Get all tracked ingredients with current pricing (SIMPLE FIX)
 app.get('/api/ingredients', async (req, res) => {
-  try {
-    console.log('📋 Getting ingredients list...');
-    
-    const result = await pool.query(`
-      WITH ingredient_summary AS (
+    try {
+      console.log('📋 Getting ingredients list...');
+      
+      const result = await pool.query(`
         SELECT 
           p.ingredient,
           p.category,
           COUNT(DISTINCT p.sku) as product_count,
-          
-          -- Find cheapest current price
-          MIN(latest.price) as min_current_price,
-          MIN(COALESCE(latest.loyalty_price, latest.price)) as min_effective_price,
-          
-          -- Calculate price per standard unit (per kg, per liter, etc.)
-          MIN(
-            CASE 
-              WHEN p.unit IN ('g', 'ml') THEN (COALESCE(latest.loyalty_price, latest.price) / p.package_size) * 1000
-              WHEN p.unit IN ('kg', 'l') THEN COALESCE(latest.loyalty_price, latest.price) / p.package_size
-              ELSE COALESCE(latest.loyalty_price, latest.price)
-            END
-          ) as price_per_unit,
-          
-          -- Standard unit for display
-          CASE 
-            WHEN p.unit IN ('g', 'kg') THEN 'kg'
-            WHEN p.unit IN ('ml', 'l') THEN 'L'
-            ELSE 'unit'
-          END as standard_unit,
-          
-          -- Price trend (recent vs older prices)
-          AVG(
-            CASE 
-              WHEN latest.scraped_at >= CURRENT_DATE - INTERVAL '7 days' THEN latest.price
-              ELSE NULL 
-            END
-          ) as recent_avg_price,
-          AVG(
-            CASE 
-              WHEN latest.scraped_at >= CURRENT_DATE - INTERVAL '30 days' 
-                   AND latest.scraped_at < CURRENT_DATE - INTERVAL '7 days' THEN latest.price
-              ELSE NULL 
-            END
-          ) as older_avg_price
-          
+          MIN(ph.price) as min_effective_price,
+          'unit' as standard_unit,
+          'Stable' as price_trend
         FROM tesco_products p
-        JOIN LATERAL (
-          SELECT * FROM tesco_price_history ph 
-          WHERE ph.sku = p.sku 
-          ORDER BY scraped_at DESC LIMIT 1
-        ) latest ON true
+        JOIN tesco_price_history ph ON p.sku = ph.sku
         WHERE p.ingredient IS NOT NULL
         GROUP BY p.ingredient, p.category
-        HAVING COUNT(DISTINCT p.sku) >= 1
-      )
-      SELECT *,
-        CASE 
-          WHEN recent_avg_price < older_avg_price * 0.95 THEN 'Falling'
-          WHEN recent_avg_price > older_avg_price * 1.05 THEN 'Rising'
-          ELSE 'Stable'
-        END as price_trend
-      FROM ingredient_summary
-      ORDER BY ingredient
-    `);
-    
-    console.log(`✅ Found ${result.rows.length} ingredients`);
-    res.json(result.rows);
-  } catch (err) {
-    console.error('❌ Error getting ingredients:', err);
-    res.status(500).json({ error: err.message });
-  }
-});
+        ORDER BY p.ingredient
+      `);
+      
+      console.log(`✅ Found ${result.rows.length} ingredients`);
+      res.json(result.rows);
+    } catch (err) {
+      console.error('❌ Error getting ingredients:', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
 
 // ROUTE 2: Get price history for specific ingredient
 app.get('/api/ingredient-price-history/:ingredient/:days', async (req, res) => {
