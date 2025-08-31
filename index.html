@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Price Tracker</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="Price Tracker">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem;
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 1.5rem;
+            font-weight: 700;
+            margin-bottom: 0.75rem;
+        }
+
+        .search-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 1rem;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            background: white;
+            -webkit-appearance: none;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: #3498db;
+        }
+
+        .quick-filters {
+            display: flex;
+            gap: 0.5rem;
+            overflow-x: auto;
+            padding-bottom: 0.25rem;
+        }
+
+        .quick-filter {
+            padding: 0.5rem 1rem;
+            background: #ecf0f1;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 44px;
+        }
+
+        .quick-filter.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .container {
+            padding: 1rem;
+        }
+
+        .nav-tabs {
+            display: flex;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            padding: 0.25rem;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 0.75rem;
+            text-align: center;
+            background: none;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 44px;
+        }
+
+        .nav-tab.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .card h3 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.1rem;
+            font-weight: 600;
+        }
+
+        .ingredient-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 0.5rem;
+            background: #f8f9fa;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 60px;
+        }
+
+        .ingredient-item:active {
+            transform: scale(0.98);
+            background: #e3f2fd;
+        }
+
+        .ingredient-item.selected {
+            background: #3498db;
+            color: white;
+        }
+
+        .ingredient-info h4 {
+            color: inherit;
+            margin-bottom: 0.25rem;
+            font-size: 1rem;
+        }
+
+        .ingredient-info p {
+            font-size: 0.8rem;
+            opacity: 0.8;
+        }
+
+        .price-info {
+            text-align: right;
+            flex-shrink: 0;
+        }
+
+        .current-price {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .ingredient-item.selected .current-price {
+            color: white;
+        }
+
+        .price-per-unit {
+            font-size: 0.8rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .ingredient-item.selected .price-per-unit {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .buy-signal {
+            background: linear-gradient(135deg, #27ae60, #2ecc71);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .wait-signal {
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .expiring-signal {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin-top: 1rem;
+            background: white;
+            border-radius: 10px;
+            padding: 0.5rem;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .chart-control {
+            padding: 0.5rem 1rem;
+            background: #ecf0f1;
+            border: none;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-height: 44px;
+        }
+
+        .chart-control.active {
+            background: #3498db;
+            color: white;
+        }
+
+        .mobile-stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 0.75rem;
+            background: #f8f9fa;
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: #3498db;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+
+        .deal-info {
+            background: #e8f5e8;
+            padding: 0.75rem;
+            border-radius: 10px;
+            margin-top: 1rem;
+            border-left: 4px solid #27ae60;
+            font-size: 0.9rem;
+        }
+
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100px;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .no-data {
+            text-align: center;
+            color: #666;
+            padding: 2rem 1rem;
+            font-size: 0.9rem;
+        }
+
+        .mobile-hidden {
+            display: none;
+        }
+
+        .quick-filters::-webkit-scrollbar,
+        .chart-controls::-webkit-scrollbar {
+            display: none;
+        }
+
+        .mobile-spacer {
+            height: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .search-container {
+                flex-direction: row;
+                align-items: center;
+            }
+            
+            .container {
+                padding: 2rem;
+                max-width: 1200px;
+                margin: 0 auto;
+            }
+            
+            .mobile-stats {
+                grid-template-columns: repeat(4, 1fr);
+            }
+            
+            .chart-container {
+                height: 400px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛒 Price Tracker</h1>
+        <div class="search-container">
+            <input type="text" class="search-input" placeholder="Search ingredients..." id="ingredientSearch">
+            <div class="quick-filters">
+                <button class="quick-filter active" data-filter="">All</button>
+                <button class="quick-filter" data-filter="pantry">Pantry</button>
+                <button class="quick-filter" data-filter="household">Household</button>
+                <button class="quick-filter" data-filter="fresh">Fresh</button>
+                <button class="quick-filter" data-filter="dairy">Dairy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="nav-tabs">
+            <button class="nav-tab active" data-tab="signals">🎯 Signals</button>
+            <button class="nav-tab" data-tab="ingredients">📋 Browse</button>
+            <button class="nav-tab" data-tab="chart">📈 Chart</button>
+        </div>
+
+        <!-- Signals Tab -->
+        <div class="tab-content" id="signals-tab">
+            <div class="card">
+                <h3>🎯 Buy Now</h3>
+                <div id="buyNowList">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⏳ Wait for Better Price</h3>
+                <div id="waitList">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>⏰ Expiring Soon</h3>
+                <div id="expiringDeals">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ingredients Tab -->
+        <div class="tab-content mobile-hidden" id="ingredients-tab">
+            <div class="card">
+                <h3>📋 Tap to View Price Chart</h3>
+                <div id="ingredientList">
+                    <div class="loading">Loading ingredients...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chart Tab -->
+        <div class="tab-content mobile-hidden" id="chart-tab">
+            <div class="card">
+                <h3 id="chartTitle">📈 Select ingredient to view chart</h3>
+                <div class="chart-controls">
+                    <button class="chart-control active" onclick="switchTimeframe(30)">30 Days</button>
+                    <button class="chart-control" onclick="switchTimeframe(60)">60 Days</button>
+                    <button class="chart-control" onclick="switchTimeframe(90)">90 Days</button>
+                </div>
+                <div class="chart-container">
+                    <canvas id="priceChart"></canvas>
+                </div>
+                
+                <div id="priceStats" class="mobile-stats" style="display: none;">
+                    <div class="stat-box">
+                        <div class="stat-value" id="currentPrice">-</div>
+                        <div class="stat-label">Current</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="minPrice">-</div>
+                        <div class="stat-label">Low</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="maxPrice">-</div>
+                        <div class="stat-label">High</div>
+                    </div>
+                    <div class="stat-box">
+                        <div class="stat-value" id="dealCount">-</div>
+                        <div class="stat-label">Deals</div>
+                    </div>
+                </div>
+
+                <div id="dealPattern" style="display: none;">
+                    <div class="deal-info">
+                        <strong>📊 Deal Pattern</strong>
+                        <p id="patternText">Analyzing...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="mobile-spacer"></div>
+    </div>
+
+    <script>
+        // API Configuration - Points to your server
+        const API_BASE = '/api';
+        
+        let priceChart;
+        let allIngredients = [];
+        let selectedIngredient = null;
+        let currentTimeframe = 30;
+        let currentTab = 'signals';
+
+        // API Functions
+        async function fetchData(endpoint) {
+            try {
+                console.log(`Fetching: ${API_BASE}${endpoint}`);
+                const response = await fetch(`${API_BASE}${endpoint}`);
+                if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                return await response.json();
+            } catch (error) {
+                console.error(`Error fetching ${endpoint}:`, error);
+                return null;
+            }
+        }
+
+        // Tab Navigation
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.classList.remove('active');
+                if (tab.dataset.tab === tabName) {
+                    tab.classList.add('active');
+                }
+            });
+            
+            document.querySelectorAll('.tab-content').forEach(content => {
+                if (content.id === `${tabName}-tab`) {
+                    content.classList.remove('mobile-hidden');
+                } else {
+                    content.classList.add('mobile-hidden');
+                }
+            });
+
+            if (tabName === 'ingredients' && allIngredients.length === 0) {
+                loadIngredients();
+            }
+        }
+
+        async function loadDashboard() {
+            try {
+                console.log('Loading dashboard data...');
+                const [buyNow, waitList, expiring] = await Promise.all([
+                    fetchData('/buy-now-signals'),
+                    fetchData('/wait-signals'), 
+                    fetchData('/expiring-deals')
+                ]);
+
+                displayBuyNowList(buyNow || []);
+                displayWaitList(waitList || []);
+                displayExpiringDeals(expiring || []);
+                
+            } catch (error) {
+                console.error('Error loading dashboard:', error);
+            }
+        }
+
+        async function loadIngredients() {
+            try {
+                console.log('Loading ingredients...');
+                const ingredients = await fetchData('/ingredients');
+                allIngredients = ingredients || [];
+                displayIngredients(allIngredients);
+            } catch (error) {
+                console.error('Error loading ingredients:', error);
+            }
+        }
+
+        function displayBuyNowList(items) {
+            const container = document.getElementById('buyNowList');
+            
+            if (!items.length) {
+                container.innerHTML = '<div class="no-data">No buy signals right now</div>';
+                return;
+            }
+
+            container.innerHTML = items.slice(0, 8).map(item => `
+                <div class="ingredient-item" onclick="selectIngredientFromSignal('${item.ingredient}')">
+                    <div class="ingredient-info">
+                        <h4>${item.ingredient}</h4>
+                        <p>${item.brand} • ${item.package_size}${item.unit}</p>
+                        <p style="font-size: 0.75rem; margin-top: 0.25rem;">${item.reason}</p>
+                    </div>
+                    <div class="price-info">
+                        <div class="buy-signal">Buy Now</div>
+                        <div class="current-price">£${item.effective_price?.toFixed(2) || item.price?.toFixed(2) || '0.00'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayWaitList(items) {
+            const container = document.getElementById('waitList');
+            
+            if (!items.length) {
+                container.innerHTML = '<div class="no-data">All items at good prices!</div>';
+                return;
+            }
+
+            container.innerHTML = items.slice(0, 6).map(item => `
+                <div class="ingredient-item" onclick="selectIngredientFromSignal('${item.ingredient}')">
+                    <div class="ingredient-info">
+                        <h4>${item.ingredient}</h4>
+                        <p>${item.brand} • ${item.package_size}${item.unit}</p>
+                        <p style="font-size: 0.75rem; margin-top: 0.25rem;">${item.reason}</p>
+                    </div>
+                    <div class="price-info">
+                        <div class="wait-signal">Wait</div>
+                        <div class="current-price">£${item.current_price?.toFixed(2) || '0.00'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayExpiringDeals(items) {
+            const container = document.getElementById('expiringDeals');
+            
+            if (!items.length) {
+                container.innerHTML = '<div class="no-data">No deals expiring soon</div>';
+                return;
+            }
+
+            container.innerHTML = items.slice(0, 6).map(item => `
+                <div class="ingredient-item" onclick="selectIngredientFromSignal('${item.ingredient}')">
+                    <div class="ingredient-info">
+                        <h4>${item.ingredient}</h4>
+                        <p>${item.brand} • ${item.package_size}${item.unit}</p>
+                        <p style="font-size: 0.75rem; margin-top: 0.25rem;">Expires: ${new Date(item.deal_valid_until).toLocaleDateString()}</p>
+                    </div>
+                    <div class="price-info">
+                        <div class="expiring-signal">Act Fast</div>
+                        <div class="current-price">£${(item.loyalty_price || item.price)?.toFixed(2) || '0.00'}</div>
+                        <div class="price-per-unit">${item.deal_savings_percentage}% off</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function displayIngredients(ingredients) {
+            const container = document.getElementById('ingredientList');
+            
+            if (!ingredients.length) {
+                container.innerHTML = '<div class="no-data">No ingredients found</div>';
+                return;
+            }
+
+            container.innerHTML = ingredients.map(ingredient => `
+                <div class="ingredient-item" onclick="selectIngredient('${ingredient.ingredient}')">
+                    <div class="ingredient-info">
+                        <h4>${ingredient.ingredient}</h4>
+                        <p>${ingredient.product_count} products • ${ingredient.category || 'Other'}</p>
+                    </div>
+                    <div class="price-info">
+                        <div class="current-price">£${ingredient.min_effective_price?.toFixed(2) || '0.00'}</div>
+                        <div class="price-per-unit">per ${ingredient.standard_unit || 'unit'}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function selectIngredient(ingredient) {
+            selectedIngredient = ingredient;
+            switchTab('chart');
+            document.getElementById('chartTitle').textContent = `📈 ${ingredient}`;
+            await loadIngredientChart(ingredient, currentTimeframe);
+        }
+
+        async function selectIngredientFromSignal(ingredient) {
+            if (allIngredients.length === 0) {
+                await loadIngredients();
+            }
+            await selectIngredient(ingredient);
+        }
+
+        async function loadIngredientChart(ingredient, days) {
+            try {
+                console.log(`Loading chart for ${ingredient} (${days} days)...`);
+                const data = await fetchData(`/ingredient-price-history/${encodeURIComponent(ingredient)}/${days}`);
+                
+                if (!data || !data.price_history.length) {
+                    showNoDataChart();
+                    return;
+                }
+
+                updatePriceChart(data.price_history, ingredient);
+                updatePriceStats(data.stats);
+                updateDealPattern(data.deal_pattern);
+                
+            } catch (error) {
+                console.error('Error loading ingredient chart:', error);
+                showNoDataChart();
+            }
+        }
+
+        function updatePriceChart(priceHistory, ingredient) {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            
+            if (priceChart) {
+                priceChart.destroy();
+            }
+
+            // Group by brand
+            const brandGroups = {};
+            priceHistory.forEach(point => {
+                if (!brandGroups[point.brand]) {
+                    brandGroups[point.brand] = [];
+                }
+                brandGroups[point.brand].push(point);
+            });
+
+            const colors = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6'];
+            const datasets = Object.entries(brandGroups).map(([brand, data], index) => ({
+                label: brand.length > 10 ? brand.substring(0, 8) + '...' : brand,
+                data: data.map(point => ({
+                    x: point.date,
+                    y: point.loyalty_price || point.price
+                })),
+                borderColor: colors[index % colors.length],
+                backgroundColor: colors[index % colors.length] + '40',
+                fill: false,
+                tension: 0.4,
+                pointRadius: 5,
+                pointHoverRadius: 8
+            }));
+
+            priceChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                padding: 15,
+                                font: { size: 12 }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'nearest',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: £${context.parsed.y.toFixed(2)}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: { unit: 'day' },
+                            title: { display: false },
+                            ticks: { font: { size: 10 } }
+                        },
+                        y: {
+                            title: { display: false },
+                            ticks: {
+                                font: { size: 10 },
+                                callback: function(value) {
+                                    return '£' + value.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    },
+                    elements: {
+                        point: {
+                            hoverRadius: 10
+                        }
+                    }
+                }
+            });
+
+            document.getElementById('priceStats').style.display = 'grid';
+            document.getElementById('dealPattern').style.display = 'block';
+        }
+
+        function updatePriceStats(stats) {
+            document.getElementById('currentPrice').textContent = '£' + (stats.current_price?.toFixed(2) || '0.00');
+            document.getElementById('minPrice').textContent = '£' + (stats.min_price?.toFixed(2) || '0.00');
+            document.getElementById('maxPrice').textContent = '£' + (stats.max_price?.toFixed(2) || '0.00');
+            document.getElementById('dealCount').textContent = stats.deal_count || '0';
+        }
+
+        function updateDealPattern(pattern) {
+            const patternText = document.getElementById('patternText');
+            
+            if (pattern.frequency === 'FREQUENT') {
+                patternText.innerHTML = `Deals every ${Math.round(pattern.avg_days_between_deals)} days. Last deal: ${pattern.days_since_last_deal} days ago.`;
+            } else if (pattern.frequency === 'OCCASIONAL') {
+                patternText.innerHTML = `Deals every ${Math.round(pattern.avg_days_between_deals)} days on average.`;
+            } else {
+                patternText.innerHTML = 'Deal pattern unclear. Buy when needed.';
+            }
+        }
+
+        function showNoDataChart() {
+            const ctx = document.getElementById('priceChart').getContext('2d');
+            if (priceChart) priceChart.destroy();
+            
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#666';
+            ctx.textAlign = 'center';
+            ctx.fillText('No data available', ctx.canvas.width / 2, ctx.canvas.height / 2);
+            
+            document.getElementById('priceStats').style.display = 'none';
+            document.getElementById('dealPattern').style.display = 'none';
+        }
+
+        function switchTimeframe(days) {
+            currentTimeframe = days;
+            
+            document.querySelectorAll('.chart-control').forEach(btn => {
+                btn.classList.remove('active');
+                if (parseInt(btn.textContent) === days) {
+                    btn.classList.add('active');
+                }
+            });
+
+            if (selectedIngredient) {
+                loadIngredientChart(selectedIngredient, currentTimeframe);
+            }
+        }
+
+        // Event Listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('App starting...');
+            
+            // Tab navigation
+            document.querySelectorAll('.nav-tab').forEach(tab => {
+                tab.addEventListener('click', () => switchTab(tab.dataset.tab));
+            });
+
+            // Quick filters
+            document.querySelectorAll('.quick-filter').forEach(filter => {
+                filter.addEventListener('click', function() {
+                    document.querySelectorAll('.quick-filter').forEach(f => f.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    const filterValue = this.dataset.filter;
+                    filterIngredients(filterValue);
+                });
+            });
+
+            // Search functionality
+            document.getElementById('ingredientSearch').addEventListener('input', function(e) {
+                const searchTerm = e.target.value.toLowerCase();
+                const filtered = allIngredients.filter(ingredient => 
+                    ingredient.ingredient.toLowerCase().includes(searchTerm)
+                );
+                displayIngredients(filtered);
+            });
+
+            // Initial load
+            loadDashboard();
+            
+            // Auto-refresh every 5 minutes
+            setInterval(loadDashboard, 300000);
+
+            // Simple pull to refresh
+            let startY;
+            document.addEventListener('touchstart', function(e) {
+                startY = e.touches[0].pageY;
+            });
+
+            document.addEventListener('touchmove', function(e) {
+                if (window.scrollY === 0 && e.touches[0].pageY > startY + 100) {
+                    loadDashboard();
+                }
+            });
+        });
+
+        function filterIngredients(category) {
+            if (!category) {
+                displayIngredients(allIngredients);
+                return;
+            }
+
+            const filtered = allIngredients.filter(ingredient => {
+                const cat = ingredient.category?.toLowerCase() || '';
+                if (category === 'pantry') {
+                    return cat.includes('pantry') || cat.includes('canned') || cat.includes('dried');
+                }
+                return cat.includes(category);
+            });
+            
+            displayIngredients(filtered);
+        }
+    </script>
+</body>
+</html>
